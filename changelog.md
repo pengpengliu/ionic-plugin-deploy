@@ -1,6 +1,10 @@
 Changelog
 =========
 
+## 1.0.0-alpha.0
+
+* Update endpoints for alpha service
+
 ## 0.6.7
 
 * (fix) Check size of elements before unzipping.
