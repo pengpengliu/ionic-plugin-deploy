@@ -505,7 +505,7 @@ static NSOperationQueue *delegateQueue;
 
 - (struct JsonHttpResponse) postDeviceDetails {
     NSString *baseUrl = self.deploy_server;
-    NSString *endpoint = [NSString stringWithFormat:@"/deploy/channels/%@/check-device/", self.channel_tag];
+    NSString *endpoint = [NSString stringWithFormat:@"/apps/%@/channels/check-device/", self.appId];
     NSString *url = [NSString stringWithFormat:@"%@%@", baseUrl, endpoint];
     NSDictionary* headers = @{@"Content-Type": @"application/json", @"accept": @"application/json"};
     NSString *uuid = [[NSUserDefaults standardUserDefaults] objectForKey:@"uuid"];
@@ -524,9 +524,8 @@ static NSOperationQueue *delegateQueue;
     NSDictionary *parameters = @{
                                  @"device": deviceDict,
                                  @"app_id": self.appId,
-                                 @"channel_tag": self.channel_tag
+                                 @"channel_name": self.channel_tag
                                  };
-
     UNIHTTPJsonResponse *result = [[UNIRest postEntity:^(UNIBodyRequest *request) {
         [request setUrl:url];
         [request setHeaders:headers];
