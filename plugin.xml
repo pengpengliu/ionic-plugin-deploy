@@ -14,6 +14,10 @@
         <clobbers target="IonicDeploy" />
     </js-module>
 
+    <preference name="APP_ID" />
+    <preference name="CHANNEL_NAME" default="Production" />
+    <preference name="UPDATE_API" default="https://api.ionicjs.com">
+
     <!-- android -->
     <platform name="android">
         <config-file target="res/xml/config.xml" parent="/*">
@@ -21,6 +25,7 @@
                 <param name="android-package" value="io.ionic.deploy.IonicDeploy"/>
                 <param name="onload" value="true"/>
             </feature>
+
         </config-file>
 
         <source-file src="src/android/IonicDeploy.java" target-dir="src/io/ionic/deploy" />
@@ -32,6 +37,18 @@
             <feature name="IonicDeploy">
                 <param name="ios-package" value="IonicDeploy" onload="true" />
             </feature>
+        </config-file>
+
+        <config-file target="*-Info.plist" parent="IonAppId">
+            <string>$APP_ID</string>
+        </config-file>
+
+        <config-file target="*-Info.plist" parent="IonChannelName">
+            <string>$CHANNEL_NAME</string>
+        </config-file>
+
+        <config-file target="*-Info.plist" parent="IonApi">
+            <string>$UPDATE_API</string>
         </config-file>
 
         <header-file src="src/ios/IonicConstant.h" />
