@@ -16,7 +16,7 @@
 
     <preference name="APP_ID" />
     <preference name="CHANNEL_NAME" default="Production" />
-    <preference name="UPDATE_API" default="https://api.ionicjs.com">
+    <preference name="UPDATE_API" default="https://api.ionicjs.com" />
 
     <!-- android -->
     <platform name="android">
