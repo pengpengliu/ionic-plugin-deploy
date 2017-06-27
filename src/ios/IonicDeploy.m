@@ -43,19 +43,6 @@ static NSOperationQueue *delegateQueue;
 @implementation IonicDeploy
 
 - (void) pluginInitialize {
-    NSLog(@"INIT YO");
-    NSLog(@"%@", [[NSBundle mainBundle] objectForInfoDictionaryKey:@"IonAppId"]);
-    NSLog(@"%@", [[NSBundle mainBundle] objectForInfoDictionaryKey:@"IonChannelName"]);
-    NSLog(@"%@", [[NSBundle mainBundle] objectForInfoDictionaryKey:@"IonApi"]);
-    
-    dispatch_async(self.serialQueue, ^{
-        if ([self parseCheckResponse:[self postDeviceDetails]]) {
-            NSLog(@"UPDATE IS GO");
-        } else {
-            NSLog(@"NO DICE");
-        }
-    });
-
     NSUserDefaults *prefs = [NSUserDefaults standardUserDefaults];
     self.cordova_js_resource = [[NSBundle mainBundle] pathForResource:@"www/cordova" ofType:@"js"];
     self.serialQueue = dispatch_queue_create("Deploy Plugin Queue", NULL);
@@ -63,40 +50,47 @@ static NSOperationQueue *delegateQueue;
     if(self.version_label == nil) {
         self.version_label = NO_DEPLOY_LABEL;
     }
-
-    NSString *uuid = [[NSUserDefaults standardUserDefaults] objectForKey:@"uuid"];
-    NSString *ignore = [prefs stringForKey:@"ionicdeploy_version_ignore"];
-    if (ignore == nil) {
-        ignore = NOTHING_TO_IGNORE;
-    }
-
-    if (![uuid isEqualToString:@""] && !self.ignore_deploy && ![uuid isEqualToString:ignore]) {
-        if ( uuid != nil && ![self.currentUUID isEqualToString: uuid] ) {
-            // Get target index.html
-            NSArray *paths = NSSearchPathForDirectoriesInDomains(NSApplicationSupportDirectory, NSUserDomainMask, YES);
-            NSString *libraryDirectory = [paths objectAtIndex:0];
-            NSString *path = [NSString stringWithFormat:@"%@/%@/index.html", libraryDirectory, uuid];
-
-            SEL wkWebViewSelector = NSSelectorFromString(@"loadFileURL:allowingReadAccessToURL:");
-            if ([self.webView respondsToSelector:wkWebViewSelector]) {
-                // It's a WKWebview
-                [((WKWebView*)self.webView)
-                 evaluateJavaScript:@"window.location.href"
-                 completionHandler:^(NSString *result, NSError *error) {
-                     NSArray *indexSplit = [result componentsSeparatedByString:@"?"];
-                     NSString *currentIndex = [indexSplit objectAtIndex:0];
-                     if (![currentIndex isEqualToString:path]) {
-                         [self doRedirect];
-                     }
-                 }];
-
-            } else {
-                // It's a UIWebView
-                NSString *currentIndex = [((UIWebView*)self.webView) stringByEvaluatingJavaScriptFromString:@"window.location.href"];
-                NSArray *indexSplit = [currentIndex componentsSeparatedByString:@"?"];
-                currentIndex = [indexSplit objectAtIndex:0];
-                if (![currentIndex isEqualToString:path]) {
-                    [self doRedirect];
+    self.appId = [NSString stringWithFormat:@"%@", [[NSBundle mainBundle] objectForInfoDictionaryKey:@"IonAppId"]];
+    self.deploy_server = [NSString stringWithFormat:@"%@", [[NSBundle mainBundle] objectForInfoDictionaryKey:@"IonApi"]];
+    self.channel_tag = [NSString stringWithFormat:@"%@", [[NSBundle mainBundle] objectForInfoDictionaryKey:@"IonChannelName"]];
+    
+    if ([self parseCheckResponse:[self postDeviceDetails]]) {
+        NSLog(@"UPDATE IS GO");
+    } else {
+        NSString *uuid = [[NSUserDefaults standardUserDefaults] objectForKey:@"uuid"];
+        NSString *ignore = [prefs stringForKey:@"ionicdeploy_version_ignore"];
+        if (ignore == nil) {
+            ignore = NOTHING_TO_IGNORE;
+        }
+        
+        if (![uuid isEqualToString:@""] && !self.ignore_deploy && ![uuid isEqualToString:ignore]) {
+            if ( uuid != nil && ![self.currentUUID isEqualToString: uuid] ) {
+                // Get target index.html
+                NSArray *paths = NSSearchPathForDirectoriesInDomains(NSApplicationSupportDirectory, NSUserDomainMask, YES);
+                NSString *libraryDirectory = [paths objectAtIndex:0];
+                NSString *path = [NSString stringWithFormat:@"%@/%@/index.html", libraryDirectory, uuid];
+                
+                SEL wkWebViewSelector = NSSelectorFromString(@"loadFileURL:allowingReadAccessToURL:");
+                if ([self.webView respondsToSelector:wkWebViewSelector]) {
+                    // It's a WKWebview
+                    [((WKWebView*)self.webView)
+                     evaluateJavaScript:@"window.location.href"
+                     completionHandler:^(NSString *result, NSError *error) {
+                         NSArray *indexSplit = [result componentsSeparatedByString:@"?"];
+                         NSString *currentIndex = [indexSplit objectAtIndex:0];
+                         if (![currentIndex isEqualToString:path]) {
+                             [self doRedirect];
+                         }
+                     }];
+                    
+                } else {
+                    // It's a UIWebView
+                    NSString *currentIndex = [((UIWebView*)self.webView) stringByEvaluatingJavaScriptFromString:@"window.location.href"];
+                    NSArray *indexSplit = [currentIndex componentsSeparatedByString:@"?"];
+                    currentIndex = [indexSplit objectAtIndex:0];
+                    if (![currentIndex isEqualToString:path]) {
+                        [self doRedirect];
+                    }
                 }
             }
         }
@@ -273,76 +267,78 @@ static NSOperationQueue *delegateQueue;
     [self.commandDelegate sendPluginResult:pluginResult callbackId:callbackId];
 }
 
+- (void) _download {
+    NSUserDefaults *prefs = [NSUserDefaults standardUserDefaults];
+    
+    NSString *upstream_uuid = [[NSUserDefaults standardUserDefaults] objectForKey:@"upstream_uuid"];
+    
+    NSLog(@"Upstream UUID: %@", upstream_uuid);
+    
+    if (upstream_uuid != nil && [self hasVersion:upstream_uuid]) {
+        // Set the current version to the upstream version (we already have this version)
+        [prefs setObject:upstream_uuid forKey:@"uuid"];
+        [prefs synchronize];
+        [self.commandDelegate sendPluginResult:[CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsString:@"true"] callbackId:self.callbackId];
+    } else {
+        NSDictionary *result = self.last_update;
+        NSString *download_url = [result objectForKey:@"url"];
+        
+        NSLog(@"download url is: %@", download_url);
+        
+        self.downloadManager = [[DownloadManager alloc] initWithDelegate:self];
+        
+        NSURL *url = [NSURL URLWithString:download_url];
+        
+        NSArray *paths = NSSearchPathForDirectoriesInDomains(NSApplicationSupportDirectory, NSUserDomainMask, YES);
+        NSString *libraryDirectory = [paths objectAtIndex:0];
+        NSString *filePath = [NSString stringWithFormat:@"%@/%@", libraryDirectory,@"www.zip"];
+        
+        NSLog(@"Queueing Download...");
+        [self.downloadManager addDownloadWithFilename:filePath URL:url];
+    }
+}
+
+- (void) _extract {
+    self.ignore_deploy = false;
+    
+    NSString *upstream_uuid = [[NSUserDefaults standardUserDefaults] objectForKey:@"upstream_uuid"];
+    
+    if(upstream_uuid != nil && [self hasVersion:upstream_uuid]) {
+        [self updateVersionLabel:NOTHING_TO_IGNORE];
+        [self.commandDelegate sendPluginResult:[CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsString:@"done"] callbackId:self.callbackId];
+    } else {
+        NSArray *paths = NSSearchPathForDirectoriesInDomains(NSApplicationSupportDirectory, NSUserDomainMask, YES);
+        NSString *libraryDirectory = [paths objectAtIndex:0];
+        NSString *uuid = [[NSUserDefaults standardUserDefaults] objectForKey:@"uuid"];
+        NSString *filePath = [NSString stringWithFormat:@"%@/%@", libraryDirectory, @"www.zip"];
+        NSString *extractPath = [NSString stringWithFormat:@"%@/%@/", libraryDirectory, uuid];
+        
+        NSLog(@"Path for zip file: %@", filePath);
+        NSLog(@"Unzipping...");
+        
+        [SSZipArchive unzipFileAtPath:filePath toDestination:extractPath delegate:self];
+        [self saveVersion:upstream_uuid];
+        [self excludeVersionFromBackup:uuid];
+        [self updateVersionLabel:NOTHING_TO_IGNORE];
+        BOOL success = [[NSFileManager defaultManager] removeItemAtPath:filePath error:nil];
+        
+        NSLog(@"Unzipped...");
+        NSLog(@"Removing www.zip %d", success);
+    }
+}
+
 - (void) download:(CDVInvokedUrlCommand *)command {
-    self.appId = [command.arguments objectAtIndex:0];
-
+    self.callbackId = command.callbackId;
     dispatch_async(self.serialQueue, ^{
-        // Save this to a property so we can have the download progress delegate thing send
-        // progress update callbacks
-        self.callbackId = command.callbackId;
-
-        NSUserDefaults *prefs = [NSUserDefaults standardUserDefaults];
-
-        NSString *upstream_uuid = [[NSUserDefaults standardUserDefaults] objectForKey:@"upstream_uuid"];
-
-        NSLog(@"Upstream UUID: %@", upstream_uuid);
-
-        if (upstream_uuid != nil && [self hasVersion:upstream_uuid]) {
-            // Set the current version to the upstream version (we already have this version)
-            [prefs setObject:upstream_uuid forKey:@"uuid"];
-            [prefs synchronize];
-            [self.commandDelegate sendPluginResult:[CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsString:@"true"] callbackId:self.callbackId];
-        } else {
-            NSDictionary *result = self.last_update;
-            NSString *download_url = [result objectForKey:@"url"];
-
-            NSLog(@"download url is: %@", download_url);
-
-            self.downloadManager = [[DownloadManager alloc] initWithDelegate:self];
-
-            NSURL *url = [NSURL URLWithString:download_url];
-
-            NSArray *paths = NSSearchPathForDirectoriesInDomains(NSApplicationSupportDirectory, NSUserDomainMask, YES);
-            NSString *libraryDirectory = [paths objectAtIndex:0];
-            NSString *filePath = [NSString stringWithFormat:@"%@/%@", libraryDirectory,@"www.zip"];
-
-            NSLog(@"Queueing Download...");
-            [self.downloadManager addDownloadWithFilename:filePath URL:url];
-        }
+        [self _download];
     });
 }
 
 - (void) extract:(CDVInvokedUrlCommand *)command {
-    self.appId = [command.arguments objectAtIndex:0];
+    self.callbackId = command.callbackId;
 
     dispatch_async(self.serialQueue, ^{
-        self.callbackId = command.callbackId;
-        self.ignore_deploy = false;
-
-        NSString *upstream_uuid = [[NSUserDefaults standardUserDefaults] objectForKey:@"upstream_uuid"];
-
-        if(upstream_uuid != nil && [self hasVersion:upstream_uuid]) {
-            [self updateVersionLabel:NOTHING_TO_IGNORE];
-            [self.commandDelegate sendPluginResult:[CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsString:@"done"] callbackId:self.callbackId];
-        } else {
-            NSArray *paths = NSSearchPathForDirectoriesInDomains(NSApplicationSupportDirectory, NSUserDomainMask, YES);
-            NSString *libraryDirectory = [paths objectAtIndex:0];
-            NSString *uuid = [[NSUserDefaults standardUserDefaults] objectForKey:@"uuid"];
-            NSString *filePath = [NSString stringWithFormat:@"%@/%@", libraryDirectory, @"www.zip"];
-            NSString *extractPath = [NSString stringWithFormat:@"%@/%@/", libraryDirectory, uuid];
-
-            NSLog(@"Path for zip file: %@", filePath);
-            NSLog(@"Unzipping...");
-
-            [SSZipArchive unzipFileAtPath:filePath toDestination:extractPath delegate:self];
-            [self saveVersion:upstream_uuid];
-            [self excludeVersionFromBackup:uuid];
-            [self updateVersionLabel:NOTHING_TO_IGNORE];
-            BOOL success = [[NSFileManager defaultManager] removeItemAtPath:filePath error:nil];
-
-            NSLog(@"Unzipped...");
-            NSLog(@"Removing www.zip %d", success);
-        }
+        [self _extract];
     });
 }
 
@@ -767,7 +763,9 @@ static NSOperationQueue *delegateQueue;
     pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsInt:self.progress];
     [pluginResult setKeepCallbackAsBool:TRUE];
 
-    [self.commandDelegate sendPluginResult:pluginResult callbackId:self.callbackId];
+    if (self.callbackId) {
+        [self.commandDelegate sendPluginResult:pluginResult callbackId:self.callbackId];
+    }
 }
 
 - (void)didErrorLoadingAllForManager:(DownloadManager *)downloadManager{
@@ -775,7 +773,9 @@ static NSOperationQueue *delegateQueue;
     CDVPluginResult* pluginResult = nil;
     pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:@"download error"];
 
-    [self.commandDelegate sendPluginResult:pluginResult callbackId:self.callbackId];
+    if (self.callbackId) {
+        [self.commandDelegate sendPluginResult:pluginResult callbackId:self.callbackId];
+    }
 }
 
 - (void)didFinishLoadingAllForManager:(DownloadManager *)downloadManager
@@ -792,8 +792,9 @@ static NSOperationQueue *delegateQueue;
     NSLog(@"Download Finished...");
     CDVPluginResult* pluginResult = nil;
     pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsString:@"true"];
-
-    [self.commandDelegate sendPluginResult:pluginResult callbackId:self.callbackId];
+    if (self.callbackId) {
+        [self.commandDelegate sendPluginResult:pluginResult callbackId:self.callbackId];
+    }
 }
 
 /* Delegate Methods for SSZipArchive */
@@ -814,7 +815,9 @@ static NSOperationQueue *delegateQueue;
 
         pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsString:@"done"];
 
-        [self.commandDelegate sendPluginResult:pluginResult callbackId:self.callbackId];
+        if (self.callbackId) {
+            [self.commandDelegate sendPluginResult:pluginResult callbackId:self.callbackId];
+        }
     }
 }
 

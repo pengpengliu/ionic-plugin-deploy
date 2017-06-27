@@ -24,7 +24,11 @@
 
 - (void) parseUpdate:(CDVInvokedUrlCommand *)command;
 
+- (void) _download;
+
 - (void) download:(CDVInvokedUrlCommand *)command;
+
+- (void) _extract;
 
 - (void) extract:(CDVInvokedUrlCommand *)command;
 
