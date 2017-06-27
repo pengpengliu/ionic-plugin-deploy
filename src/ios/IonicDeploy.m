@@ -53,9 +53,12 @@ static NSOperationQueue *delegateQueue;
     self.appId = [NSString stringWithFormat:@"%@", [[NSBundle mainBundle] objectForInfoDictionaryKey:@"IonAppId"]];
     self.deploy_server = [NSString stringWithFormat:@"%@", [[NSBundle mainBundle] objectForInfoDictionaryKey:@"IonApi"]];
     self.channel_tag = [NSString stringWithFormat:@"%@", [[NSBundle mainBundle] objectForInfoDictionaryKey:@"IonChannelName"]];
+    [self initVersionChecks];
     
     if ([self parseCheckResponse:[self postDeviceDetails]]) {
         NSLog(@"UPDATE IS GO");
+        [self _download];
+        [self doRedirect];
     } else {
         NSString *uuid = [[NSUserDefaults standardUserDefaults] objectForKey:@"uuid"];
         NSString *ignore = [prefs stringForKey:@"ionicdeploy_version_ignore"];
@@ -95,8 +98,6 @@ static NSOperationQueue *delegateQueue;
             }
         }
     }
-
-    [self initVersionChecks];
 }
 
 - (NSString *) getUUID {
@@ -336,7 +337,6 @@ static NSOperationQueue *delegateQueue;
 
 - (void) extract:(CDVInvokedUrlCommand *)command {
     self.callbackId = command.callbackId;
-
     dispatch_async(self.serialQueue, ^{
         [self _extract];
     });
@@ -758,22 +758,20 @@ static NSOperationQueue *delegateQueue;
 
     NSLog(@"Download Progress: %.0f%%", ((100.0 / download.expectedContentLength) * download.progressContentLength));
 
-    CDVPluginResult* pluginResult = nil;
-
-    pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsInt:self.progress];
-    [pluginResult setKeepCallbackAsBool:TRUE];
-
     if (self.callbackId) {
+        CDVPluginResult* pluginResult = nil;
+        pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsInt:self.progress];
+        [pluginResult setKeepCallbackAsBool:TRUE];
         [self.commandDelegate sendPluginResult:pluginResult callbackId:self.callbackId];
     }
 }
 
 - (void)didErrorLoadingAllForManager:(DownloadManager *)downloadManager{
     NSLog(@"Download Error");
-    CDVPluginResult* pluginResult = nil;
-    pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:@"download error"];
 
     if (self.callbackId) {
+        CDVPluginResult* pluginResult = nil;
+        pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:@"download error"];
         [self.commandDelegate sendPluginResult:pluginResult callbackId:self.callbackId];
     }
 }
@@ -790,10 +788,13 @@ static NSOperationQueue *delegateQueue;
 
     NSLog(@"UUID is: %@ and upstream_uuid is: %@", uuid, upstream_uuid);
     NSLog(@"Download Finished...");
-    CDVPluginResult* pluginResult = nil;
-    pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsString:@"true"];
+    
     if (self.callbackId) {
+        CDVPluginResult* pluginResult = nil;
+        pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsString:@"true"];
         [self.commandDelegate sendPluginResult:pluginResult callbackId:self.callbackId];
+    } else {
+        [self _extract];
     }
 }
 
