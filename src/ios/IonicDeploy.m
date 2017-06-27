@@ -33,6 +33,7 @@ typedef struct JsonHttpResponse {
 @property NSString *deploy_server;
 
 // private
+- (Boolean) parseCheckResponse:(JsonHttpResponse)result;
 - (void) handleCheckResponse:(JsonHttpResponse)result callbackId:(NSString *)callbackId;
 
 @end
@@ -42,6 +43,19 @@ static NSOperationQueue *delegateQueue;
 @implementation IonicDeploy
 
 - (void) pluginInitialize {
+    NSLog(@"INIT YO");
+    NSLog(@"%@", [[NSBundle mainBundle] objectForInfoDictionaryKey:@"IonAppId"]);
+    NSLog(@"%@", [[NSBundle mainBundle] objectForInfoDictionaryKey:@"IonChannelName"]);
+    NSLog(@"%@", [[NSBundle mainBundle] objectForInfoDictionaryKey:@"IonApi"]);
+    
+    dispatch_async(self.serialQueue, ^{
+        if ([self parseCheckResponse:[self postDeviceDetails]]) {
+            NSLog(@"UPDATE IS GO");
+        } else {
+            NSLog(@"NO DICE");
+        }
+    });
+
     NSUserDefaults *prefs = [NSUserDefaults standardUserDefaults];
     self.cordova_js_resource = [[NSBundle mainBundle] pathForResource:@"www/cordova" ofType:@"js"];
     self.serialQueue = dispatch_queue_create("Deploy Plugin Queue", NULL);
@@ -151,6 +165,7 @@ static NSOperationQueue *delegateQueue;
 }
 
 - (void) initialize:(CDVInvokedUrlCommand *)command {
+    self.appId = [command.arguments objectAtIndex:0];
     self.deploy_server = [command.arguments objectAtIndex:1];
 }
 
