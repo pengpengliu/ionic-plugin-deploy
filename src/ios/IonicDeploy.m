@@ -57,8 +57,7 @@ static NSOperationQueue *delegateQueue;
     
     if ([self parseCheckResponse:[self postDeviceDetails]]) {
         NSLog(@"UPDATE IS GO");
-        [self _download];
-        [self doRedirect];
+        [self loadNewVersion];
     } else {
         NSString *uuid = [[NSUserDefaults standardUserDefaults] objectForKey:@"uuid"];
         NSString *ignore = [prefs stringForKey:@"ionicdeploy_version_ignore"];
@@ -152,6 +151,11 @@ static NSOperationQueue *delegateQueue;
             [prefs synchronize];
         }
     }
+}
+
+- (void) loadNewVersion {
+    [self _download];
+    [self doRedirect];
 }
 
 - (void) onReset {
@@ -804,19 +808,17 @@ static NSOperationQueue *delegateQueue;
     float progress = ((100.0 / total) * loaded);
     NSLog(@"Zip Extraction: %.0f%%", progress);
 
-    CDVPluginResult* pluginResult = nil;
-
-    pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsInt:progress];
-    [pluginResult setKeepCallbackAsBool:TRUE];
-
-    [self.commandDelegate sendPluginResult:pluginResult callbackId:self.callbackId];
-
-    if (progress == 100) {
+    if (self.callbackId) {
         CDVPluginResult* pluginResult = nil;
-
-        pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsString:@"done"];
-
-        if (self.callbackId) {
+        pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsInt:progress];
+        [pluginResult setKeepCallbackAsBool:TRUE];
+        
+        [self.commandDelegate sendPluginResult:pluginResult callbackId:self.callbackId];
+        
+        if (progress == 100) {
+            CDVPluginResult* pluginResult = nil;
+            pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsString:@"done"];
+            
             [self.commandDelegate sendPluginResult:pluginResult callbackId:self.callbackId];
         }
     }
