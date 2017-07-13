@@ -36,5 +36,5 @@
 - (void)swizzled_hide:(CDVInvokedCommand*)command 
 {
     NSLog(@"SWIZZLED HIDE");
-    [self swizzled_hide];
+    [self swizzled_hide:command];
 }
