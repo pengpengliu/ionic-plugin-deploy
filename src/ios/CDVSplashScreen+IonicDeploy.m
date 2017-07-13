@@ -5,10 +5,10 @@
 
 @implementation CDVSplashScreen(Deploy)
 
-- (void)swizzled_hide:(CDVInvokedUrlCommand*)command
+- (void)swizzled_setvisible:(BOOL)visible andForce:(BOOL)force
 {
-    NSLog(@"SWIZZLED HIDE");
-    [self swizzled_hide:command];
+    NSLog(@"SWIZZLED SETVIS");
+    [self swizzled_setvisible:visible andForce:force];
 }
 
 + (void)load
@@ -17,8 +17,8 @@
     dispatch_once(&onceToken, ^{
         Class class = [self class];
         
-        SEL originalSelector = @selector(hide:);
-        SEL swizzledSelector = @selector(swizzled_hide:);
+        SEL originalSelector = @selector(setVisible: andForce:);
+        SEL swizzledSelector = @selector(swizzled_setvisible: andForce:);
         
         Method originalMethod = class_getInstanceMethod(class, originalSelector);
         Method swizzledMethod = class_getInstanceMethod(class, swizzledSelector);
