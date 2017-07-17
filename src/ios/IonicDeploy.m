@@ -42,6 +42,15 @@ static NSOperationQueue *delegateQueue;
 
 @implementation IonicDeploy
 
++ (BOOL) isPluginUpdating {
+    NSUserDefaults *prefs = [NSUserDefaults standardUserDefaults];
+    NSInteger isLoading = [prefs integerForKey:@"is_downloading"];
+    if (isLoading == 1) {
+        return true;
+    }
+    return false;
+}
+
 - (void) pluginInitialize {
     NSUserDefaults *prefs = [NSUserDefaults standardUserDefaults];
     self.cordova_js_resource = [[NSBundle mainBundle] pathForResource:@"www/cordova" ofType:@"js"];
@@ -57,8 +66,10 @@ static NSOperationQueue *delegateQueue;
     
     if ([self parseCheckResponse:[self postDeviceDetails]]) {
         NSLog(@"UPDATE IS GO");
-        [self loadNewVersion];
+        [self _download];
     } else {
+        [prefs setInteger:2 forKey:@"is_downloading"];
+        [prefs synchronize];
         NSString *uuid = [[NSUserDefaults standardUserDefaults] objectForKey:@"uuid"];
         NSString *ignore = [prefs stringForKey:@"ionicdeploy_version_ignore"];
         if (ignore == nil) {
@@ -148,14 +159,10 @@ static NSOperationQueue *delegateQueue;
             self.ignore_deploy = true;
             [self updateVersionLabel:uuid];
             [prefs setObject: @"" forKey: @"uuid"];
+            [prefs setInteger:1 forKey:@"is_downloading"];
             [prefs synchronize];
         }
     }
-}
-
-- (void) loadNewVersion {
-    [self _download];
-    [self doRedirect];
 }
 
 - (void) onReset {
@@ -799,6 +806,10 @@ static NSOperationQueue *delegateQueue;
         [self.commandDelegate sendPluginResult:pluginResult callbackId:self.callbackId];
     } else {
         [self _extract];
+        [self doRedirect];
+        NSUserDefaults *prefs = [NSUserDefaults standardUserDefaults];
+        [prefs setInteger:2 forKey:@"is_downloading"];
+        [prefs synchronize];
     }
 }
 
