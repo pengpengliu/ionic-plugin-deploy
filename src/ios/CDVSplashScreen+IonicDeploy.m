@@ -8,28 +8,35 @@
 - (void)swizzled_setvisible:(BOOL)visible andForce:(BOOL)force
 {
     if (!visible){
-        dispatch_queue_t serialQueue = dispatch_queue_create("Deploy SetVis Queue", NULL);
-        dispatch_async(serialQueue, ^{
-            NSLog(@"DEPLOY: Waiting to hide splash");
-            while ([IonicDeploy isPluginUpdating]) {
-                [NSThread sleepForTimeInterval:0.5f];
-            }
+        if ([IonicDeploy isPluginUpdating]) {
+            dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (uint64_t) 1 * NSEC_PER_SEC), dispatch_get_main_queue(), CFBridgingRelease(CFBridgingRetain(^(void) {
+                if ([IonicDeploy isPluginUpdating]) {
+                    [self setVisible:visible andForce:force];
+                } else {
+                    [self swizzled_setvisible:visible andForce:force];
+                }
+            })));
+        } else {
             [self swizzled_setvisible:visible andForce:force];
-        });
+        }
+    } else {
+        [self swizzled_setvisible:visible andForce:force];
     }
-    [self swizzled_setvisible:visible andForce:force];
 }
 
 - (void)swizzled_pageDidLoad
 {
-    dispatch_queue_t serialQueue = dispatch_queue_create("Deploy Load Queue", NULL);
-    dispatch_async(serialQueue, ^{
-        NSLog(@"DEPLOY: Waiting to hide splash");
-        while ([IonicDeploy isPluginUpdating]) {
-            [NSThread sleepForTimeInterval:0.5f];
-        }
+    if ([IonicDeploy isPluginUpdating]) {
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (uint64_t) 1 * NSEC_PER_SEC), dispatch_get_main_queue(), CFBridgingRelease(CFBridgingRetain(^(void) {
+            if ([IonicDeploy isPluginUpdating]) {
+                [self pageDidLoad];
+            } else {
+                [self swizzled_pageDidLoad];
+            }
+        })));
+    } else {
         [self swizzled_pageDidLoad];
-    });
+    }
 }
 
 + (void)swizzle:(SEL)originalSelector newImp:(SEL)swizzledSelector
