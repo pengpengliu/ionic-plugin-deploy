@@ -6,6 +6,8 @@
 
 @property (strong, nonatomic) DownloadManager *downloadManager;
 
++ (BOOL) isPluginUpdating;
+
 - (NSString *) getUUID;
 
 - (NSString *) constructVersionLabel: (NSString *) uuid;

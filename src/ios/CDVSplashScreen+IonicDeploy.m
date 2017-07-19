@@ -12,15 +12,12 @@
         dispatch_async(serialQueue, ^{
             NSLog(@"DEPLOY: Waiting to hide splash");
             while ([IonicDeploy isPluginUpdating]) {
-                NSLog(@"DEPLOY: INCH!");
                 [NSThread sleepForTimeInterval:0.5f];
             }
             [self swizzled_setvisible:visible andForce:force];
         });
-    } else if ([IonicDeploy isPluginUpdating]) {
-        NSLog(@"DEPLOY: Passing");
-        [self swizzled_setvisible:visible andForce:force];
     }
+    [self swizzled_setvisible:visible andForce:force];
 }
 
 - (void)swizzled_pageDidLoad
@@ -29,7 +26,6 @@
     dispatch_async(serialQueue, ^{
         NSLog(@"DEPLOY: Waiting to hide splash");
         while ([IonicDeploy isPluginUpdating]) {
-            NSLog(@"DEPLOY: INCH!");
             [NSThread sleepForTimeInterval:0.5f];
         }
         [self swizzled_pageDidLoad];
