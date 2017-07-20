@@ -71,15 +71,6 @@ var IonicDeploy = {
       [app_id, version]
     );
   },
-  getMetadata: function(app_id, uuid, success, failure) {
-    cordova.exec(
-      success,
-      failure,
-      'IonicDeploy',
-      'getMetadata',
-      [app_id, uuid]
-    );
-  },
   parseUpdate: function(app_id, jsonResponse, success, failure) {
     if (typeof jsonReponse !== 'string') {
       jsonResponse = JSON.stringify(jsonResponse);

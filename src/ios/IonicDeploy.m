@@ -378,58 +378,6 @@ static NSOperationQueue *delegateQueue;
     [self.commandDelegate sendPluginResult:[CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsArray:[self getDeployVersions]] callbackId:command.callbackId];
 }
 
-- (void) getMetadata:(CDVInvokedUrlCommand *)command {
-    self.appId = [command.arguments objectAtIndex:0];
-    CDVPluginResult *pluginResult = nil;
-    NSString *uuid = [command.arguments objectAtIndex:1];
-
-    if (uuid == nil || uuid == [NSNull null] || [uuid isEqualToString:@""] || [uuid isEqualToString:@"null"]) {
-        uuid = [[NSUserDefaults standardUserDefaults] objectForKey:@"upstream_uuid"];
-    }
-
-    if (uuid == nil || uuid == [NSNull null] || [uuid isEqualToString:@""] || [uuid isEqualToString:@"null"]) {
-        pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:@"NO_DEPLOY_UUID_AVAILABLE"];
-    } else {
-        NSString *strippedUUID = [uuid stringByReplacingOccurrencesOfString:@"-" withString:@""];
-        NSMutableString *formattedUUID = [NSMutableString stringWithString: strippedUUID];
-        [formattedUUID insertString: @"-" atIndex: 8];
-        [formattedUUID insertString: @"-" atIndex: 13];
-        [formattedUUID insertString: @"-" atIndex: 18];
-        [formattedUUID insertString: @"-" atIndex: 23];
-        NSString *baseUrl = self.deploy_server;
-        NSString *endpoint = [NSString stringWithFormat:@"/deploy/snapshots/%@?app_id=%@", formattedUUID.lowercaseString, self.appId];
-        NSString *url = [NSString stringWithFormat:@"%@%@", baseUrl, endpoint];
-        NSDictionary* headers = @{@"Content-Type": @"application/json", @"accept": @"application/json"};
-        NSError *httpError = nil;
-
-        UNIHTTPJsonResponse *result = [[UNIRest get:^(UNISimpleRequest *request) {
-            [request setUrl:url];
-            [request setHeaders:headers];
-        }] asJson:&httpError];
-
-        @try {
-            JsonHttpResponse response;
-            response.json = [result.body JSONObject];
-            NSDictionary *resp = [response.json objectForKey: @"data"];
-            NSDictionary *metadata = [resp objectForKey:@"user_metadata"];
-            NSDictionary *res = @{
-                                  @"metadata": metadata
-                                  };
-            pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsDictionary:res];
-        }
-        @catch (NSException *exception) {
-            pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:@"DEPLOY_HTTP_ERROR"];
-        }
-
-        if (httpError || result.code != 200) {
-            pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:@"DEPLOY_HTTP_ERROR"];
-        }
-    }
-
-    [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
-}
-
-
 - (void) doRedirect {
     NSUserDefaults *prefs = [NSUserDefaults standardUserDefaults];
     NSString *uuid = [[NSUserDefaults standardUserDefaults] objectForKey:@"uuid"];
