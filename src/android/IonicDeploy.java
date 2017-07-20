@@ -14,6 +14,7 @@ import org.apache.cordova.CordovaInterface;
 import org.apache.cordova.CordovaPlugin;
 import org.apache.cordova.CordovaWebView;
 import org.apache.cordova.PluginResult;
+import org.apache.cordova.splashscreen;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -56,6 +57,7 @@ public class IonicDeploy extends CordovaPlugin {
   String server = "https://api.ionicjs.com";
   Context myContext = null;
   String app_id = null;
+  String channel = null;
   boolean debug = true;
   SharedPreferences prefs = null;
   CordovaWebView v = null;
@@ -108,6 +110,9 @@ public class IonicDeploy extends CordovaPlugin {
     this.prefs = getPreferences();
     this.v = webView;
     this.version_label = prefs.getString("ionicdeploy_version_label", IonicDeploy.NO_DEPLOY_LABEL);
+    this.app_id = prefs.getString("app_id", getString(R.string.ionic_app_id));
+    this.server = getString(R.string.ionic_update_api);
+    this.channel = prefs.getString("channel", getString(R.string.ionic_channel_name));
     this.initVersionChecks();
   }
 
@@ -184,19 +189,21 @@ public class IonicDeploy extends CordovaPlugin {
    */
   public boolean execute(String action, JSONArray args, final CallbackContext callbackContext) throws JSONException {
 
-    this.app_id = args.getString(0);
     this.prefs = getPreferences();
 
-    initApp(args.getString(0));
+    initApp(this.app_id);
 
     final SharedPreferences prefs = this.prefs;
 
     if (action.equals("initialize")) {
-      this.server = args.getString(1);
       return true;
     } else if (action.equals("check")) {
       logMessage("CHECK", "Checking for updates");
-      final String channel_tag = args.getString(1);
+      if(!this.channel.equals(args.getString(1);)) {
+        this.channel = args.getString(1);
+        this.prefs.edit().putString("channel").apply();
+      }
+      final String channel_tag = this.channel;
       cordova.getThreadPool().execute(new Runnable() {
         public void run() {
           checkForUpdates(callbackContext, channel_tag);
@@ -239,29 +246,6 @@ public class IonicDeploy extends CordovaPlugin {
         callbackContext.error("Error attempting to remove the version, are you sure it exists?");
       }
       return true;
-    } else if (action.equals("getMetadata")) {
-      String uuid = null;
-      try {
-        uuid = args.getString(1);
-      } catch (JSONException e) {
-        uuid = this.prefs.getString("upstream_uuid", "");
-      }
-
-      if (uuid.equals("null")) {
-        uuid = this.prefs.getString("upstream_uuid", "");
-      }
-
-      if(uuid == null || uuid.equals("")) {
-        callbackContext.error("NO_DEPLOY_UUID_AVAILABLE");
-      } else {
-        final String metadata_uuid = uuid;
-        cordova.getThreadPool().execute(new Runnable() {
-          public void run() {
-            getMetadata(callbackContext, metadata_uuid);
-          }
-        });
-      }
-      return true;
     } else if (action.equals("parseUpdate")) {
       logMessage("PARSEUPDATE", "Checking response for updates");
       final String response = args.getString(1);
@@ -274,46 +258,6 @@ public class IonicDeploy extends CordovaPlugin {
     } else {
       return false;
     }
-  }
-
-  private JSONObject getMetadata(CallbackContext callbackContext, final String uuid) {
-    String strictuuid = uuid.replaceAll("(\\w{8})(\\w{4})(\\w{4})(\\w{4})(\\w{12})", "$1-$2-$3-$4-$5");
-    String endpoint = "/deploy/snapshots/" + strictuuid + "?app_id=" + this.app_id;
-    JsonHttpResponse response = new JsonHttpResponse();
-    JSONObject json = new JSONObject();
-    HttpURLConnection urlConnection = null;
-
-    String result = "{}";
-    try {
-      URL url = new URL(this.server + endpoint);
-      HttpURLConnection.setFollowRedirects(true);
-      urlConnection = (HttpURLConnection) url.openConnection();
-      InputStream in = new BufferedInputStream(urlConnection.getInputStream());
-      result = readStream(in);
-    } catch (MalformedURLException e) {
-      callbackContext.error("DEPLOY_HTTP_ERROR");
-      response.error = true;
-    } catch (IOException e) {
-      callbackContext.error("DEPLOY_HTTP_ERROR");
-      response.error = true;
-    }
-
-    if (urlConnection != null) {
-      urlConnection.disconnect();
-    }
-
-    JSONObject jsonResponse = null;
-    try {
-      jsonResponse = new JSONObject(result);
-      JSONObject d = jsonResponse.getJSONObject("data");
-      JSONObject user_metadata = d.getJSONObject("user_metadata");
-      json.put("metadata", user_metadata);
-      callbackContext.success(json);
-    } catch (JSONException e) {
-      response.error = true;
-      callbackContext.error("There was an error fetching the metadata");
-    }
-    return jsonResponse;
   }
 
   private void info(CallbackContext callbackContext) {
@@ -330,7 +274,6 @@ public class IonicDeploy extends CordovaPlugin {
   }
 
   private void initApp(String app_id) {
-    this.app_id = app_id;
     SharedPreferences prefs = this.prefs;
 
     prefs.edit().putString("app_id", this.app_id).apply();
@@ -558,7 +501,7 @@ public class IonicDeploy extends CordovaPlugin {
   }
 
   private JsonHttpResponse postDeviceDetails(String uuid, final String channel_tag) {
-    String endpoint = "/deploy/channels/" + channel_tag + "/check-device";
+    String endpoint = "/apps/" + channel_tag + "/channels/check-device";
     JsonHttpResponse response = new JsonHttpResponse();
     JSONObject json = new JSONObject();
     JSONObject device_details = new JSONObject();
