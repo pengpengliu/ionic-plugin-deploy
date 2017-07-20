@@ -25,7 +25,12 @@
                 <param name="android-package" value="io.ionic.deploy.IonicDeploy"/>
                 <param name="onload" value="true"/>
             </feature>
+        </config-file>
 
+        <config-file target="res/values/strings.xml" parent="/resources">
+            <string name="ionic_app_id">$APP_ID</string>
+            <string name="ionic_channel_name">$CHANNEL_NAME</string>
+            <string name="ionic_update_api">$UPDATE_API</string>
         </config-file>
 
         <source-file src="src/android/IonicDeploy.java" target-dir="src/io/ionic/deploy" />
