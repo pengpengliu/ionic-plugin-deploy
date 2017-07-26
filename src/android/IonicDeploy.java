@@ -58,6 +58,7 @@ public class IonicDeploy extends CordovaPlugin {
   Context myContext = null;
   String app_id = null;
   String channel = null;
+  boolean autoUpdate = true;
   boolean debug = true;
   boolean isLoading = false;
   SharedPreferences prefs = null;
@@ -73,6 +74,11 @@ public class IonicDeploy extends CordovaPlugin {
   public static final int VERSION_AHEAD = 1;
   public static final int VERSION_MATCH = 0;
   public static final int VERSION_BEHIND = -1;
+
+  //define callback interface
+  interface DownloadCallbackInterface {
+    void onDownloadFinished(boolean success);
+  }
 
   /**
    * Returns the data contained at filePath as a string
@@ -114,6 +120,11 @@ public class IonicDeploy extends CordovaPlugin {
     this.app_id = prefs.getString("app_id", getString(R.string.ionic_app_id));
     this.server = getString(R.string.ionic_update_api);
     this.channel = prefs.getString("channel", getString(R.string.ionic_channel_name));
+
+    if (!getString(R.string.ionic_auto_update).equals("true")) {
+      this.autoUpdate = false;
+    }
+
     this.initVersionChecks();
   }
 
@@ -155,11 +166,15 @@ public class IonicDeploy extends CordovaPlugin {
   }
 
   private void checkAndDownloadNewVersion() {
-    this.isLoading = true;
-    if (isUpdateAvailable()) {
-      
+    if (this.autoUpdate) {
+      this.isLoading = true;
+      if (isUpdateAvailable()) {
+        String url = this.last_update.getString("url");
+        final DownloadTask downloadTask = new DownloadTask(this.myContext, this);
+        downloadTask.execute(url);
+        this.isLoading = false;
+      }
     }
-    this.isLoading = false;
   }
 
   private String constructVersionLabel(PackageInfo packageInfo, String uuid) {
@@ -675,7 +690,9 @@ public class IonicDeploy extends CordovaPlugin {
       this.ignore_deploy = false;
       this.updateVersionLabel(IonicDeploy.NOTHING_TO_IGNORE);
 
-      callbackContext.success("done"); // we have already extracted this version
+      if (callbackContext != null) {
+        callbackContext.success("done"); // we have already extracted this version
+      }
       return;
     }
 
@@ -720,9 +737,11 @@ public class IonicDeploy extends CordovaPlugin {
           float progress = (extracted / entries) * new Float("100.0f");
           logMessage("EXTRACT", "Progress: " + (int) progress + "%");
 
-          PluginResult progressResult = new PluginResult(PluginResult.Status.OK, (int) progress);
-          progressResult.setKeepCallback(true);
-          callbackContext.sendPluginResult(progressResult);
+          if (callbackContext != null) {
+            PluginResult progressResult = new PluginResult(PluginResult.Status.OK, (int) progress);
+            progressResult.setKeepCallback(true);
+            callbackContext.sendPluginResult(progressResult);
+          }
         }
       }
       zipInputStream.close();
@@ -744,8 +763,10 @@ public class IonicDeploy extends CordovaPlugin {
         }
       }
 
-      // make sure to send an error
-      callbackContext.error(e.getMessage());
+      if (callbackContext != null) {
+        // make sure to send an error
+        callbackContext.error(e.getMessage());
+      }
       return;
     }
 
@@ -768,7 +789,11 @@ public class IonicDeploy extends CordovaPlugin {
     this.ignore_deploy = false;
     this.updateVersionLabel(IonicDeploy.NOTHING_TO_IGNORE);
 
-    callbackContext.success("done");
+    if (callbackContext != null) {
+      callbackContext.success("done");
+    } else {
+      this.redirect();
+    }
   }
 
   /**
@@ -862,15 +887,18 @@ public class IonicDeploy extends CordovaPlugin {
   private class DownloadTask extends AsyncTask<String, Integer, String> {
     private Context myContext;
     private CallbackContext callbackContext;
+    private IonicDeploy deploy;
 
     public DownloadTask(Context context, CallbackContext callbackContext) {
       this.myContext = context;
       this.callbackContext = callbackContext;
+      this.deploy = null;
     }
 
-    public DownloadTask(Context context) {
+    public DownloadTask(Context context, IonicDeploy deploy) {
       this.myContext = context;
       this.callbackContext = null;
+      this.deploy = deploy;
     }
 
     @Override
@@ -951,6 +979,14 @@ public class IonicDeploy extends CordovaPlugin {
       prefs.edit().putString("uuid", uuid).apply();
       if (this.callbackContext != null) {
         this.callbackContext.success("true");
+      } else if (this.deploy != null) {
+        logMessage("EXTRACT", "Extracting update");
+        final String uuid = deploy.getUUID("");
+        cordova.getThreadPool().execute(new Runnable() {
+          public void run() {
+            deploy.unzip("www.zip", uuid, null);
+          }
+        });
       }
       return null;
     }
