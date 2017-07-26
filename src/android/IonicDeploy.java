@@ -54,11 +54,12 @@ class JsonHttpResponse {
 }
 
 public class IonicDeploy extends CordovaPlugin {
-  String server = "https://api.ionicjs.com";
+  String server = null;
   Context myContext = null;
   String app_id = null;
   String channel = null;
   boolean debug = true;
+  boolean isLoading = false;
   SharedPreferences prefs = null;
   CordovaWebView v = null;
   String version_label = null;
@@ -151,6 +152,14 @@ public class IonicDeploy extends CordovaPlugin {
         this.prefs.edit().remove("uuid").apply();
       }
     }
+  }
+
+  private void checkAndDownloadNewVersion() {
+    this.isLoading = true;
+    if (isUpdateAvailable()) {
+      
+    }
+    this.isLoading = false;
   }
 
   private String constructVersionLabel(PackageInfo packageInfo, String uuid) {
@@ -345,6 +354,52 @@ public class IonicDeploy extends CordovaPlugin {
     }
   }
 
+  private boolean isUpdateAvailable() {
+    this.last_update = null;
+    String deployed_version = this.prefs.getString("uuid", "");
+    String ignore_version = this.prefs.getString("ionicdeploy_version_ignore", "");
+    String loaded_version = this.prefs.getString("loaded_uuid", "");
+    JsonHttpResponse response = postDeviceDetails(deployed_version, this.channel);
+
+    try {
+      if (response.json != null) {
+        JSONObject update = response.json.getJSONObject("data");
+        Boolean compatible = Boolean.valueOf(update.getString("compatible"));
+        Boolean updatesAvailable = Boolean.valueOf(update.getString("available"));
+
+        if(!compatible) {
+          logMessage("PARSEUPDATE", "Refusing update due to incompatible binary version");
+        } else if(updatesAvailable) {
+          try {
+            String update_uuid = update.getString("snapshot");
+            if(!update_uuid.equals(ignore_version) && !update_uuid.equals(loaded_version)) {
+              prefs.edit().putString("upstream_uuid", update_uuid).apply();
+              this.last_update = update;
+            } else {
+              updatesAvailable = new Boolean(false);
+            }
+
+          } catch (JSONException e) {
+            logMessage("PARSEUPDATE", e.toString());
+          }
+        }
+
+        if(updatesAvailable && compatible) {
+          return true;
+        } else {
+          return false;
+        }
+      } else {
+        logMessage("PARSEUPDATE", "Unable to check for updates.");
+        return false;
+      }
+    } catch (JSONException e) {
+      logMessage("PARSEUPDATE", e.toString());
+    }
+
+    return false;
+  }
+
   private void downloadUpdate(CallbackContext callbackContext) {
     String upstream_uuid = this.prefs.getString("upstream_uuid", "");
     if (upstream_uuid != "" && this.hasVersion(upstream_uuid)) {
@@ -359,6 +414,22 @@ public class IonicDeploy extends CordovaPlugin {
       } catch (JSONException e) {
         logMessage("DOWNLOAD", e.toString());
         callbackContext.error("Error fetching download");
+      }
+    }
+  }
+
+  private void downloadUpdate() {
+    String upstream_uuid = this.prefs.getString("upstream_uuid", "");
+    if (upstream_uuid != "" && this.hasVersion(upstream_uuid)) {
+      // Set the current version to the upstream uuid
+      prefs.edit().putString("uuid", upstream_uuid).apply();
+    } else {
+      try {
+          String url = this.last_update.getString("url");
+          final DownloadTask downloadTask = new DownloadTask(this.myContext);
+          downloadTask.execute(url);
+      } catch (JSONException e) {
+        logMessage("DOWNLOAD", e.toString());
       }
     }
   }
@@ -797,6 +868,11 @@ public class IonicDeploy extends CordovaPlugin {
       this.callbackContext = callbackContext;
     }
 
+    public DownloadTask(Context context) {
+      this.myContext = context;
+      this.callbackContext = null;
+    }
+
     @Override
     protected String doInBackground(String... sUrl) {
       InputStream input = null;
@@ -812,7 +888,9 @@ public class IonicDeploy extends CordovaPlugin {
         // instead of the file
         if (connection.getResponseCode() != HttpURLConnection.HTTP_OK) {
           String msg = "Server returned HTTP " + connection.getResponseCode() + " " + connection.getResponseMessage();
-          callbackContext.error(msg);
+          if (this.callbackContext != null) {
+            this.callbackContext.error(msg);
+          }
           return msg;
         }
 
@@ -840,11 +918,15 @@ public class IonicDeploy extends CordovaPlugin {
             logMessage("DOWNLOAD", "Progress: " + (int) progress + "%");
             PluginResult progressResult = new PluginResult(PluginResult.Status.OK, (int) progress);
             progressResult.setKeepCallback(true);
-            callbackContext.sendPluginResult(progressResult);
+            if (this.callbackContext != null) {
+              this.callbackContext.sendPluginResult(progressResult);
+            }
           }
         }
       } catch (Exception e) {
-        callbackContext.error("Something failed with the download...");
+        if (this.callbackContext != null) {
+          this.callbackContext.error("Something failed with the download...");
+        }
         return e.toString();
       } finally {
         try {
@@ -867,7 +949,9 @@ public class IonicDeploy extends CordovaPlugin {
       String uuid = prefs.getString("upstream_uuid", "");
 
       prefs.edit().putString("uuid", uuid).apply();
-      callbackContext.success("true");
+      if (this.callbackContext != null) {
+        this.callbackContext.success("true");
+      }
       return null;
     }
   }
