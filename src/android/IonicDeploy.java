@@ -172,7 +172,6 @@ public class IonicDeploy extends CordovaPlugin {
         String url = this.last_update.getString("url");
         final DownloadTask downloadTask = new DownloadTask(this.myContext, this);
         downloadTask.execute(url);
-        this.isLoading = false;
       }
     }
   }
@@ -788,6 +787,8 @@ public class IonicDeploy extends CordovaPlugin {
     // if we get here we know unzip worked
     this.ignore_deploy = false;
     this.updateVersionLabel(IonicDeploy.NOTHING_TO_IGNORE);
+
+    this.isLoading = false;
 
     if (callbackContext != null) {
       callbackContext.success("done");
