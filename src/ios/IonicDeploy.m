@@ -61,7 +61,12 @@ static NSOperationQueue *delegateQueue;
     }
     self.appId = [NSString stringWithFormat:@"%@", [[NSBundle mainBundle] objectForInfoDictionaryKey:@"IonAppId"]];
     self.deploy_server = [NSString stringWithFormat:@"%@", [[NSBundle mainBundle] objectForInfoDictionaryKey:@"IonApi"]];
-    self.channel_tag = [NSString stringWithFormat:@"%@", [[NSBundle mainBundle] objectForInfoDictionaryKey:@"IonChannelName"]];
+    self.channel_tag = [prefs stringForKey:@"channel"];
+    if (self.channel_tag == nil) {
+        self.channel_tag = [NSString stringWithFormat:@"%@", [[NSBundle mainBundle] objectForInfoDictionaryKey:@"IonChannelName"]];
+        [prefs setObject: self.channel_tag forKey: @"channel"];
+        [prefs synchronize];
+    }
     [self initVersionChecks];
     
     if ([self parseCheckResponse:[self postDeviceDetails]]) {
@@ -176,8 +181,11 @@ static NSOperationQueue *delegateQueue;
 }
 
 - (void) check:(CDVInvokedUrlCommand *)command {
+    NSUserDefaults *prefs = [NSUserDefaults standardUserDefaults];
     self.appId = [command.arguments objectAtIndex:0];
     self.channel_tag = [command.arguments objectAtIndex:1];
+    [prefs setObject: self.channel_tag forKey: @"channel"];
+    [prefs synchronize];
 
     if([self.appId isEqual: @"YOUR_APP_ID"]) {
         [self.commandDelegate sendPluginResult:[CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:@"Please set your app id in app.js for YOUR_APP_ID before using $ionicDeploy"] callbackId:command.callbackId];
