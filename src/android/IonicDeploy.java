@@ -170,6 +170,8 @@ public class IonicDeploy extends CordovaPlugin {
         this.prefs.edit().remove("uuid").apply();
       }
     }
+
+    this.checkAndDownloadNewVersion();
   }
 
   private void checkAndDownloadNewVersion() {
