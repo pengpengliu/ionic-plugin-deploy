@@ -17,6 +17,7 @@
     <preference name="APP_ID" />
     <preference name="CHANNEL_NAME" default="Production" />
     <preference name="UPDATE_API" default="https://api.ionicjs.com" />
+    <preference name="AUTO_UPDATE" default="true" />
 
     <!-- android -->
     <platform name="android">
@@ -31,6 +32,7 @@
             <string name="ionic_app_id">$APP_ID</string>
             <string name="ionic_channel_name">$CHANNEL_NAME</string>
             <string name="ionic_update_api">$UPDATE_API</string>
+            <string name="ionic_auto_update">$AUTO_UPDATE</string>
         </config-file>
 
         <source-file src="src/android/IonicDeploy.java" target-dir="src/io/ionic/deploy" />
@@ -54,6 +56,10 @@
 
         <config-file target="*-Info.plist" parent="IonApi">
             <string>$UPDATE_API</string>
+        </config-file>
+
+        <config-file target="*-Info.plist" parent="IonAutoUpdate">
+            <string>$AUTO_UPDATE</string>
         </config-file>
 
         <header-file src="src/ios/CDVSplashScreen+IonicDeploy.h" />

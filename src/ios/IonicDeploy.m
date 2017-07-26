@@ -23,6 +23,7 @@ typedef struct JsonHttpResponse {
 @property NSString *callbackId;
 @property NSString *appId;
 @property NSString *channel_tag;
+@property NSString *auto_update;
 @property NSDictionary *last_update;
 @property Boolean ignore_deploy;
 @property NSString *version_label;
@@ -61,15 +62,17 @@ static NSOperationQueue *delegateQueue;
     }
     self.appId = [NSString stringWithFormat:@"%@", [[NSBundle mainBundle] objectForInfoDictionaryKey:@"IonAppId"]];
     self.deploy_server = [NSString stringWithFormat:@"%@", [[NSBundle mainBundle] objectForInfoDictionaryKey:@"IonApi"]];
+    self.auto_update = [NSString stringWithFormat @"%@", [[NSBundle mainBundle] objectForInfoDictionaryKey:@"IonAutoUpdate"]]
     self.channel_tag = [prefs stringForKey:@"channel"];
     if (self.channel_tag == nil) {
         self.channel_tag = [NSString stringWithFormat:@"%@", [[NSBundle mainBundle] objectForInfoDictionaryKey:@"IonChannelName"]];
         [prefs setObject: self.channel_tag forKey: @"channel"];
         [prefs synchronize];
     }
+
     [self initVersionChecks];
     
-    if ([self parseCheckResponse:[self postDeviceDetails]]) {
+    if (![self.auto_update isEqualToString:@"true"] && [self parseCheckResponse:[self postDeviceDetails]]) {
         NSLog(@"UPDATE IS GO");
         [self _download];
     } else {
