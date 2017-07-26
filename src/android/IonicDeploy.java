@@ -1,5 +1,6 @@
 package io.ionic.deploy;
 
+import android.app.Activity;
 import android.content.Context;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
@@ -14,7 +15,6 @@ import org.apache.cordova.CordovaInterface;
 import org.apache.cordova.CordovaPlugin;
 import org.apache.cordova.CordovaWebView;
 import org.apache.cordova.PluginResult;
-import org.apache.cordova.splashscreen;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -104,6 +104,13 @@ public class IonicDeploy extends CordovaPlugin {
     return text.toString();
   }
 
+  private String getStringResourceByName(String aString) {
+    Activity activity = cordova.getActivity();
+    String packageName = activity.getPackageName();
+    int resId = activity.getResources().getIdentifier(aString, "string", packageName);
+    return activity.getString(resId);
+  }
+
   /**
    * Sets the context of the Command. This can then be used to do things like
    * get file paths associated with the Activity.
@@ -117,11 +124,11 @@ public class IonicDeploy extends CordovaPlugin {
     this.prefs = getPreferences();
     this.v = webView;
     this.version_label = prefs.getString("ionicdeploy_version_label", IonicDeploy.NO_DEPLOY_LABEL);
-    this.app_id = prefs.getString("app_id", getString(R.string.ionic_app_id));
-    this.server = getString(R.string.ionic_update_api);
-    this.channel = prefs.getString("channel", getString(R.string.ionic_channel_name));
+    this.app_id = prefs.getString("app_id", getStringResourceByName("ionic_app_id"));
+    this.server = getStringResourceByName("ionic_update_api");
+    this.channel = prefs.getString("channel", getStringResourceByName("ionic_channel_name"));
 
-    if (!getString(R.string.ionic_auto_update).equals("true")) {
+    if (!getStringResourceByName("ionic_auto_update").equals("true")) {
       this.autoUpdate = false;
     }
 
@@ -169,9 +176,13 @@ public class IonicDeploy extends CordovaPlugin {
     if (this.autoUpdate) {
       this.isLoading = true;
       if (isUpdateAvailable()) {
-        String url = this.last_update.getString("url");
-        final DownloadTask downloadTask = new DownloadTask(this.myContext, this);
-        downloadTask.execute(url);
+        try {
+          String url = this.last_update.getString("url");
+          final DownloadTask downloadTask = new DownloadTask(this.myContext, this);
+          downloadTask.execute(url);
+        } catch (JSONException e) {
+          logMessage("AUTO_UPDATE", "Update information is not available");
+        }
       }
     }
   }
@@ -222,9 +233,9 @@ public class IonicDeploy extends CordovaPlugin {
       return true;
     } else if (action.equals("check")) {
       logMessage("CHECK", "Checking for updates");
-      if(!this.channel.equals(args.getString(1);)) {
+      if(!this.channel.equals(args.getString(1))) {
         this.channel = args.getString(1);
-        this.prefs.edit().putString("channel").apply();
+        this.prefs.edit().putString("channel", this.channel).apply();
       }
       final String channel_tag = this.channel;
       cordova.getThreadPool().execute(new Runnable() {
@@ -428,22 +439,6 @@ public class IonicDeploy extends CordovaPlugin {
       } catch (JSONException e) {
         logMessage("DOWNLOAD", e.toString());
         callbackContext.error("Error fetching download");
-      }
-    }
-  }
-
-  private void downloadUpdate() {
-    String upstream_uuid = this.prefs.getString("upstream_uuid", "");
-    if (upstream_uuid != "" && this.hasVersion(upstream_uuid)) {
-      // Set the current version to the upstream uuid
-      prefs.edit().putString("uuid", upstream_uuid).apply();
-    } else {
-      try {
-          String url = this.last_update.getString("url");
-          final DownloadTask downloadTask = new DownloadTask(this.myContext);
-          downloadTask.execute(url);
-      } catch (JSONException e) {
-        logMessage("DOWNLOAD", e.toString());
       }
     }
   }
@@ -793,7 +788,7 @@ public class IonicDeploy extends CordovaPlugin {
     if (callbackContext != null) {
       callbackContext.success("done");
     } else {
-      this.redirect();
+      this.redirect(this.getUUID(""));
     }
   }
 
@@ -975,14 +970,13 @@ public class IonicDeploy extends CordovaPlugin {
       SharedPreferences prefs = getPreferences();
 
       // Set the saved uuid to the most recently acquired upstream_uuid
-      String uuid = prefs.getString("upstream_uuid", "");
-
+      final String uuid = prefs.getString("upstream_uuid", "");
       prefs.edit().putString("uuid", uuid).apply();
+
       if (this.callbackContext != null) {
         this.callbackContext.success("true");
       } else if (this.deploy != null) {
         logMessage("EXTRACT", "Extracting update");
-        final String uuid = deploy.getUUID("");
         cordova.getThreadPool().execute(new Runnable() {
           public void run() {
             deploy.unzip("www.zip", uuid, null);
