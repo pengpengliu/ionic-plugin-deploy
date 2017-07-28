@@ -150,6 +150,7 @@ public class IonicDeploy extends CordovaPlugin {
   }
 
   private void initVersionChecks() {
+    logMessage("INIT", "VChecks");
     String ionicdeploy_version_label = IonicDeploy.NO_DEPLOY_LABEL;
     String uuid = this.getUUID();
 
@@ -177,15 +178,20 @@ public class IonicDeploy extends CordovaPlugin {
   private void checkAndDownloadNewVersion() {
     if (this.autoUpdate) {
       this.isLoading = true;
-      if (isUpdateAvailable()) {
-        try {
-          String url = this.last_update.getString("url");
-          final DownloadTask downloadTask = new DownloadTask(this.myContext, this);
-          downloadTask.execute(url);
-        } catch (JSONException e) {
-          logMessage("AUTO_UPDATE", "Update information is not available");
+      final IonicDeploy self = this;
+      cordova.getThreadPool().execute(new Runnable() {
+        public void run() {
+          if (isUpdateAvailable()) {
+            try {
+              String url = self.last_update.getString("url");
+              final DownloadTask downloadTask = new DownloadTask(self.myContext, self);
+              downloadTask.execute(url);
+            } catch (JSONException e) {
+              logMessage("AUTO_UPDATE", "Update information is not available");
+            }
+          }
         }
-      }
+      });
     }
   }
 
@@ -583,7 +589,7 @@ public class IonicDeploy extends CordovaPlugin {
   }
 
   private JsonHttpResponse postDeviceDetails(String uuid, final String channel_tag) {
-    String endpoint = "/apps/" + channel_tag + "/channels/check-device";
+    String endpoint = "/apps/" + this.app_id + "/channels/check-device";
     JsonHttpResponse response = new JsonHttpResponse();
     JSONObject json = new JSONObject();
     JSONObject device_details = new JSONObject();
@@ -594,7 +600,7 @@ public class IonicDeploy extends CordovaPlugin {
         device_details.put("snapshot", uuid);
       }
       device_details.put("platform", "android");
-      json.put("channel_tag", channel_tag);
+      json.put("channel_name", channel_tag);
       json.put("app_id", this.app_id);
       json.put("device", device_details);
 
@@ -620,13 +626,17 @@ public class IonicDeploy extends CordovaPlugin {
       String result = readStream(in);
 
       JSONObject jsonResponse = new JSONObject(result);
+      logMessage("POST_CHECK_RES", jsonResponse.toString(2));
 
       response.json = jsonResponse;
     } catch (JSONException e) {
+      logMessage("POST_CHECK_ERR", e.getMessage());
       response.error = true;
     } catch (MalformedURLException e) {
+      logMessage("POST_CHECK_ERR", e.getMessage());
       response.error = true;
     } catch (IOException e) {
+      logMessage("POST_CHECK_ERR", e.getMessage());
       response.error = true;
     }
 
