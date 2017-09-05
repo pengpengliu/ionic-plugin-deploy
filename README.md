@@ -1,6 +1,6 @@
-## Ionic Deploy Plugin
+## Ionic Deploy Plugin (legacy)
 
-The Cordova plugin for Ionic Deploy.
+:memo: Note: This Cordova plugin is not for Ionic Pro.
 
 Check out our [docs](https://docs.ionic.io/services/deploy/) for more detailed information.
 
