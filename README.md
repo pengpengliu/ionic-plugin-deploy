@@ -1,6 +1,6 @@
 ## Ionic Cloud Deploy Plugin (legacy)
 
-This is the plugin for Ionic Cloud Deploy, which is now superseded by Ionic Pro Deploy.
+This is the plugin for Ionic Cloud Deploy, which is now superseded by [Ionic Pro Deploy](http://ionicframework.com/docs/pro/deploy/).
 
 We strongly recommend migrating to the new version of Deploy which has resolved a number of issues and is in active development. Migration is straightforward, please refer to the [Cloud -> Pro Migration Guide](http://ionicframework.com/docs/pro/migration/) for a walkthrough. 
 
