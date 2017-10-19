@@ -1,8 +1,20 @@
-## Ionic Deploy Plugin (legacy)
+## Ionic Cloud Deploy Plugin (legacy)
 
-:memo: Note: This Cordova plugin is not for Ionic Pro.
+This is the plugin for Ionic Cloud Deploy, which is now superseded by Ionic Pro Deploy.
 
-Check out our [docs](https://docs.ionic.io/services/deploy/) for more detailed information.
+We strongly recommend migrating to the new version of Deploy which has resolved a number of issues and is in active development. Migration is straightforward, please refer to the [Cloud -> Pro Migration Guide](http://ionicframework.com/docs/pro/migration/) for a walkthrough. 
+
+For documentation on Legacy Deploy, see the [legacy docs](https://docs.ionic.io/services/deploy/) for more detailed information.
+
+## Reporting issues with this plugin
+
+Please file a ticket with support for any issues with this plugin: http://ionicframework.com/support
+
+We will not see github issues filed here and will not be able to respond to them in any timely manner.
+
+----
+
+Legacy plugin instructions
 
 ## Installation
 
