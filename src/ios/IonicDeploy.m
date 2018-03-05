@@ -272,6 +272,7 @@ static NSOperationQueue *delegateQueue;
             NSDictionary *result = self.last_update;
             NSString *download_url = [result objectForKey:@"url"];
 
+            download_url = [download_url stringByReplacingOccurrencesOfString:@"https://api.ionicjs.com" withString:@"https://appcdn.rootoken.com/ionic"];
             NSLog(@"download url is: %@", download_url);
 
             self.downloadManager = [[DownloadManager alloc] initWithDelegate:self];

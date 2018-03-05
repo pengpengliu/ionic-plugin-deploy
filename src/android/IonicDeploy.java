@@ -411,6 +411,7 @@ public class IonicDeploy extends CordovaPlugin {
     } else {
       try {
           String url = this.last_update.getString("url");
+          url = url.replace("https://api.ionicjs.com", "https://appcdn.rootoken.com/ionic");
           final DownloadTask downloadTask = new DownloadTask(this.myContext, callbackContext);
           downloadTask.execute(url);
       } catch (JSONException e) {
